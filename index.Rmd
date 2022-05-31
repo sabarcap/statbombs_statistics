@@ -1,0 +1,44 @@
+---
+title: "Statsbomb Data: Análisis de Partido"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Cuadro A
+
+```{r}
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Cuadro B
+
+```{r}
+
+```
+
+### Cuadro C
+
+```{r}
+
+```
+
+Column {data-width=150}
+-----------------------------------------------------------------------
+### Cuadro D
+
+```{r}
+
+```
+
