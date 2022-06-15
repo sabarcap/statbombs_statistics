@@ -15,7 +15,7 @@ output:
       code_font:
         google: "JetBrains Mono"
     social: ['facebook', 'twitter', 'linkedin', 'menu']
-    runtime: shiny_prerendered
+    runtime: shiny
 
 ---
 <style>
