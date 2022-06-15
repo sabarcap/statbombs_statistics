@@ -1,44 +1,607 @@
 ---
-title: "Statsbomb Data: Análisis de Partido"
+title: "Análisis de Partido"
 output: 
   flexdashboard::flex_dashboard:
     orientation: columns
-    vertical_layout: fill
----
+    theme: 
+      version: 5
+      bg: "#265C69"
+      fg: "#2F2D26"
+      primary: "#675D69"
+      secondary: "#6D8280"
+      Info: "#A9D9E3"
+      base_font:
+        google: "Prompt"
+      code_font:
+        google: "JetBrains Mono"
+    social: ['facebook', 'twitter', 'linkedin', 'menu']
+    runtime: shiny_prerendered
 
-```{r setup, include=FALSE}
+---
+<style>
+.nav-tabs-custom .nav-tabs li.active a {
+  color: blue;
+}
+
+.nav-tabs-custom .nav-tabs li:not(.active) a {
+  color: red;
+}
+.value-box {
+  font-size: 18px;
+  text-align: center;
+}
+.value-box .value {
+    color: white;
+}
+</style>
+
+```{r setup, include = FALSE, context = "server"}
 library(flexdashboard)
+library(StatsBombR)
+library(tidyverse)
+library(SBpitch)
+library(cowplot)
+
+
+#bslib::bs_themer()
 ```
 
-Column {data-width=650}
------------------------------------------------------------------------
+```{r}
+load(url('https://github.com/sabarcap/statbombs_statistics/raw/main/Euro_2020_con_360.RData'))
+```
 
+```{r }
+remates <- events.df %>%
+  group_by(team.name) %>%
+  summarise( shots = sum(type.name == 'Shot', na.rm = T)) %>%
+  arrange(team.name)
+
+```
+
+```{r }
+remates_al_arco <- events.df %>%
+  group_by(team.name) %>%
+  filter(shot.outcome.name %in% c('Saved', 'Goal')) %>%
+  summarise( shots_goal = sum(type.name == 'Shot')) %>%
+  arrange(team.name)
+  
+```
+
+```{r }
+poss__x <- events.df %>%
+  group_by(possession_team.name) %>%
+  summarise( TimeInPoss = sum(TimeInPoss)) %>%
+  transmute(possession_team.name, percent = TimeInPoss/sum(TimeInPoss, 1)) %>%
+  arrange(possession_team.name)
+
+```
+
+```{r }
+passes_count <- events.df %>%
+  group_by(team.name) %>%
+  filter(is.na(pass.type.name) | pass.type.name != 'Recovery') %>%
+  summarise( Pass_Count = sum(type.name == 'Pass')) %>%
+  arrange(team.name)
+
+```
+
+```{r }
+passes_precision <- events.df %>%
+  group_by(team.name) %>%
+  filter(type.name == 'Pass') %>%
+  select(pass.outcome.name) %>%
+  transmute( team.name, percent = sum(is.na(pass.outcome.name))/length(pass.outcome.name)) %>%
+  arrange(team.name) %>%
+  unique()
+```
+```{r}
+fouls_global <- events.df %>%
+  group_by(team.name) %>%
+  filter(type.name == 'Foul Committed' & is.na(foul_committed.advantage)) %>%
+  summarise( Fouls_Commited = sum(type.name == 'Foul Committed' )) %>%
+  arrange(team.name)
+```
+
+```{r}
+yellow_card <- events.df %>%
+  group_by(team.name) %>%
+  filter(is.na(foul_committed.card.name) | foul_committed.card.name == 'Yellow Card' ) %>%
+  summarise( YellowCard = sum(!is.na(foul_committed.card.name))) %>%
+  arrange(team.name)
+
+red_card <- events.df %>%
+  group_by(team.name) %>%
+  filter(is.na(foul_committed.card.name) | foul_committed.card.name == 'Red Card' | foul_committed.card.name == 'Second Yellow' ) %>%
+  summarise( RedCard = sum(!is.na(foul_committed.card.name))) %>%
+  arrange(team.name)
+```
+
+
+
+# Prueba
+
+##
+### {data-width=200}
+```{r}
+valueBox(value = formattable::comma(cat(paste(unique(events.df$team.name[1])))),
+         color = 'navy')
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(remates[1, 2]))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(remates_al_arco[1, 2]))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(round(poss__x[1, 2], 2)*100,'%'))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(passes_count[1, 2]))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(round(passes_precision[1, 2], 2)*100, '%'))))
+```
+
+###
+```{r}
+
+valueBox(formattable::comma(cat(paste(fouls_global[1, 2]))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(ifelse(is.na(yellow_card[1, 2]), 0, yellow_card[1, 2])))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(ifelse(is.na(red_card[1, 2]), 0, red_card[1, 2])))))
+```
+
+
+##
+### {data-width=600}
+```{r}
+valueBox(formattable::comma(cat(paste('ESTADISTICOS'))),
+         color = 'info')
+```
+
+### 
+```{r}
+valueBox(formattable::comma(cat(paste('Remates'))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste('Remates al Arco'))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste('Posesión de Balón'))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste('Número de Pases con tenencia de balón'))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste('Porcentaje Precisión de Pases'))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste('Faltas cometidas'))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste('Tarjetas Amarillas'))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste('Tarjetas Rojas'))))
+```
+
+
+##
+### {data-width=200}
+```{r}
+valueBox(formattable::comma(cat(paste(unique(events.df$team.name[2])))),
+         color = 'navy')
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(remates[2, 2]))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(remates_al_arco[2, 2]))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(round(poss__x[2, 2], 2)*100,'%'))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(passes_count[2, 2]))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(round(passes_precision[2, 2], 2)*100, '%'))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(fouls_global[2, 2]))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(ifelse(is.na(yellow_card[2, 2]), 0, yellow_card[2, 2])))))
+```
+
+###
+```{r}
+valueBox(formattable::comma(cat(paste(ifelse(is.na(red_card[2, 2]), 0, red_card[2, 2])))))
+```
+
+
+
+
+
+# Gráficos {data-orientation=rows}
+```{r message=FALSE, warning=FALSE, cache=FALSE}
+img_url <- ('https://github.com/sabarcap/statbombs_statistics/raw/main/pitch_draw.jpg')
+img_temp <- tempfile()
+download.file(img_url, img_temp, mode = 'wb')
+img <- jpeg::readJPEG(img_temp)
+invisible(file.remove(img_temp))
+
+g <- grid::rasterGrob(img, width=unit(1,"npc"), height=unit(1,"npc"), interpolate = F)
+
+```
+
+```{r}
+df_events <- events.df %>% 
+  soccermatics::soccerTransform(method = "statsbomb") %>%
+  rename("x" = "location.x",
+         "y" = "location.y",
+         "endx" = "pass.end_location.x",
+         "endy" = "pass.end_location.y",
+         "From" = "player.name",
+         "team" = "team.name") %>%
+  mutate(y = 68 - y,
+         endy = 68 - endy,
+         x = ifelse(!is.na(x), 105 - x, x),
+         endx = ifelse(!is.na(x), 105 - endx, endx))
+```
+```{r}
+pases_completados <- events.df %>%
+  group_by(team.name) %>%
+  filter(type.name == 'Pass' & is.na(pass.outcome.name)) %>%
+  select(team.name, player.name, location.x, location.y, pass.end_location.x, pass.end_location.y) %>%
+  soccermatics::soccerTransform(method = "statsbomb") %>%
+  rename("x" = "location.x",
+         "y" = "location.y",
+         "endx" = "pass.end_location.x",
+         "endy" = "pass.end_location.y",
+         "From" = "player.name",
+         "team" = "team.name") %>%
+  mutate(y = 68 - y,
+         endy = 68 - endy,
+         x = ifelse(!is.na(x), 105 - x, x),
+         endx = ifelse(!is.na(x), 105 - endx, endx))
+  
+```
+```{r}
+palette <- paletteer::paletteer_d("RColorBrewer::YlOrRd", direction = 1)
+ 
+
+```
+
+
+
+Row
+-------------------------------------
+### Passing Network France
+```{r }
+#El equipo que se plotea son los titulares del comienzo del partido. Filtro los pases hasta la 1era roja, sustitucion, fin del partido 
+first_red_card_minute <- df_events %>% 
+  filter(foul_committed.card.name %in% c("Second Yellow", "Red Card")) %>%
+  filter(team == 'France') %>%
+  summarise_at("minute", min, na.rm = T) %>%
+  as.numeric()
+
+first_substitution_minute <- df_events %>% 
+  filter(team == 'France') %>%
+  filter(type.name == "Substitution") %>%
+  summarise_at("minute", min, na.rm = T) %>%
+  as.numeric()
+
+max_minute <- max(df_events$minute, na.rm = T)
+
+nodes <- df_events %>% 
+  filter(type.name == "Pass" & 
+         team == 'France' & 
+         minute < min(first_red_card_minute, first_substitution_minute, max_minute, na.rm = T)) %>%
+  filter(is.na(pass.outcome.name)) %>%
+  group_by(From) %>%
+  dplyr::summarise(x = median(x, na.rm=T), y = median(y, na.rm=T), num_pass = n()) %>%
+  na.omit() %>%
+  mutate(size = scales::rescale(num_pass, c(2, 15), c(min(num_pass), max(num_pass)))) #maxNodeSize = 15
+
+```
+```{r }
+pitch_p <-   ggplot() +
+  annotation_custom(g, xmin = -0.5, xmax = 105.5, ymin = -0.5, ymax = 68.5) +
+  scale_x_continuous(limits = c(-0.5, 105.5), expand = c(0,0)) +
+  scale_y_continuous(limits = c(-0.5, 68.5), expand = c(0,0)) +
+  #labs(x = "", y = "", title = title, subtitle = subtitle, caption = "@DatoFutbol_cl") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(vjust = -0.2, size = 14),
+        plot.subtitle = element_text(size = 10, face = "italic"),
+        plot.caption = element_text(size = 10, vjust = 7),
+        plot.margin = unit(c(0.6, 0.8, 0.2, 0.4), "cm"))
+
+p <- pitch_p +
+
+  geom_point(data = nodes, aes(x = x, y = y, size = size),
+             pch = 21, fill = 'grey', col = "red", alpha = 0.8, stroke = 3, 
+             ) + 
+            scale_size_identity() +
+            scale_alpha_identity() +
+            guides(size = F) +
+
+  ggrepel::geom_label_repel(data = nodes, aes(x, y, label=From),
+                     force_pull = 0,
+                     point.padding = 0.1,
+                     size = 4, col="white", fill="grey30", alpha=0.6, #labelSize = 4
+                     min.segment.length = 0)
+
+plot(p)
+```
+
+
+### Passing Network Germany
+
+```{r }
+#El equipo que se plotea son los titulares del comienzo del partido. Filtro los pases hasta la 1era roja, sustitucion, fin del partido 
+first_red_card_minute <- df_events %>% 
+  filter(foul_committed.card.name %in% c("Second Yellow", "Red Card")) %>%
+  filter(team == 'Germany') %>%
+  summarise_at("minute", min, na.rm = T) %>%
+  as.numeric()
+
+first_substitution_minute <- df_events %>% 
+  filter(team == 'Germany') %>%
+  filter(type.name == "Substitution") %>%
+  summarise_at("minute", min, na.rm = T) %>%
+  as.numeric()
+
+max_minute <- max(df_events$minute, na.rm = T)
+
+nodes <- df_events %>% 
+  filter(type.name == "Pass" & 
+         team == 'Germany' & 
+         minute < min(first_red_card_minute, first_substitution_minute, max_minute, na.rm = T)) %>%
+  filter(is.na(pass.outcome.name)) %>%
+  group_by(From) %>%
+  dplyr::summarise(x = median(x, na.rm=T), y = median(y, na.rm=T), num_pass = n()) %>%
+  na.omit() %>%
+  mutate(size = scales::rescale(num_pass, c(2, 15), c(min(num_pass), max(num_pass)))) #maxNodeSize = 15
+
+```
+```{r}
+pitch_p <-   ggplot() +
+  annotation_custom(g, xmin = -0.5, xmax = 105.5, ymin = -0.5, ymax = 68.5) +
+  scale_x_continuous(limits = c(-0.5, 105.5), expand = c(0,0)) +
+  scale_y_continuous(limits = c(-0.5, 68.5), expand = c(0,0)) +
+  
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(vjust = -0.2, size = 14),
+        plot.subtitle = element_text(size = 10, face = "italic"),
+        plot.caption = element_text(size = 10, vjust = 7),
+        plot.margin = unit(c(0.6, 0.8, 0.2, 0.4), "cm"))
+
+p <- pitch_p +
+
+  geom_point(data = nodes, aes(x = x, y = y, size = size),
+             pch = 21, fill = 'grey', col = "red", alpha = 0.8, stroke = 3, 
+             ) + 
+            scale_size_identity() +
+            scale_alpha_identity() +
+            guides(size = F) +
+
+  ggrepel::geom_label_repel(data = nodes, aes(x, y, label=From),
+                     force_pull = 0,
+                     point.padding = 0.1,
+                     size = 4, col="white", fill="grey30", alpha=0.6, #labelSize = 4
+                     min.segment.length = 0)
+
+plot(p)
+```
+
+
+
+Row
+-------------------------------------
+### Mapa de calor de Pases France
+```{r}
+
+heat_pass_map_team1 <- 
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+    geom_density_2d_filled(data = pases_completados %>% filter(team == 'France'),
+                         aes(x = endx, y = endy, fill = ..level..,),
+                         alpha = .4, 
+                        contour_var = "ndensity", 
+                        breaks = seq(0.1, 1.0, length.out = 10)) +
+    # scale_x_continuous(limits = c(0, 105)) +
+    # scale_y_continuous(limits = c(0, 68)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) +
+  
+  theme(legend.position = "none")
+
+
+
+plot(heat_pass_map_team1)
+
+```
+
+
+
+
+### Mapa de Calor de Pases Germany
+
+```{r}
+
+heat_pass_map_team2<- 
+  create_Pitch(grass_colour = "gray15", background_colour = "gray15", line_colour = "white") +
+    geom_density_2d_filled(data = pases_completados %>% filter(team == 'Germany'),
+                         aes(x = endx, y = endy, fill = ..level..,),
+                         alpha = .4, 
+                        contour_var = "ndensity", 
+                        breaks = seq(0.1, 1.0, length.out = 10)) +
+    # scale_x_continuous(limits = c(0, 105)) +
+    # scale_y_continuous(limits = c(0, 68)) +
+    scale_fill_manual(values = c(palette), aesthetics = c("fill", "color")) +
+  
+  theme(legend.position = "none")
+
+
+
+plot(heat_pass_map_team2)
+
+```
+
+
+# Dataset {data-orientation=columns}
+ 
+Row {data-width=350}
+-------------------------------------
 ### Cuadro A
 
+Row {.tabset}
+-------------------------------------
+### Minutos en Cancha: France
 ```{r}
+events.df <- events.df %>% 
+  group_by(match_id) %>% 
+  mutate(end = max(ElapsedTime))
+
+minutes <- events.df %>%
+  mutate(inicio = 0) %>%
+  group_by(match_id, player.name) %>%  
+  filter(row_number() == 1) %>%
+  select(team.name, player.name, ElapsedTime, end, inicio) %>% 
+  na.omit() %>% 
+  group_by(match_id) %>% 
+  top_n(22, -ElapsedTime) %>% 
+  select(-ElapsedTime)
+
+minutes <- rbind(minutes, events.df %>% 
+    filter(type.name == "Substitution") %>% 
+    select(match_id, team.name, player.name = substitution.replacement.name, end, inicio = ElapsedTime))
+
+minutes <- left_join(
+  minutes,
+  events.df %>% 
+    filter(type.name == "Substitution") %>% 
+    select(match_id, team.name, player.name, end = ElapsedTime),
+  by = c("match_id", "team.name", "player.name"))
+
+minutes <- minutes %>% 
+  mutate(end = if_else(end.y < end.x, end.y, end.x),
+         end = if_else(is.na(end.y), end.x, end.y)) %>%
+  mutate(mins = round((end - inicio) / 60, 0)) %>%
+  select(-end.x, -end.y)%>%
+  filter(team.name == 'France')
+
+minutes <- minutes %>%
+  ungroup() %>%
+  select(Equipo = team.name,
+         Jugador = player.name,
+         Minutos_en_Juego = mins)
+
+
+DT::datatable(minutes)
 
 ```
 
-Column {data-width=350}
------------------------------------------------------------------------
 
-### Cuadro B
 
+### Minutos en Cancha: Germany
 ```{r}
+events.df <- events.df %>% 
+  group_by(match_id) %>% 
+  mutate(end = max(ElapsedTime))
+
+minutes <- events.df %>%
+  mutate(inicio = 0) %>%
+  group_by(match_id, player.name) %>%  
+  filter(row_number() == 1) %>%
+  select(team.name, player.name, ElapsedTime, end, inicio) %>% 
+  na.omit() %>% 
+  group_by(match_id) %>% 
+  top_n(22, -ElapsedTime) %>% 
+  select(-ElapsedTime)
+
+minutes <- rbind(minutes, events.df %>% 
+    filter(type.name == "Substitution") %>% 
+    select(match_id, team.name, player.name = substitution.replacement.name, end, inicio = ElapsedTime))
+
+minutes <- left_join(
+  minutes,
+  events.df %>% 
+    filter(type.name == "Substitution") %>% 
+    select(match_id, team.name, player.name, end = ElapsedTime),
+  by = c("match_id", "team.name", "player.name"))
+
+minutes <- minutes %>% 
+  mutate(end = if_else(end.y < end.x, end.y, end.x),
+         end = if_else(is.na(end.y), end.x, end.y)) %>%
+  mutate(mins = round((end - inicio) / 60, 0)) %>%
+  select(-end.x, -end.y)%>%
+  filter(team.name == 'Germany')
+
+minutes <- minutes %>%
+  ungroup() %>%
+  select(Equipo = team.name,
+         Jugador = player.name,
+         Minutos_en_Juego = mins)
+
+
+DT::datatable(minutes)
 
 ```
 
-### Cuadro C
 
-```{r}
-
-```
-
-Column {data-width=150}
------------------------------------------------------------------------
-### Cuadro D
-
-```{r}
-
-```
 
