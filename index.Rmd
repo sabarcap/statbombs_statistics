@@ -15,7 +15,6 @@ output:
       code_font:
         google: "JetBrains Mono"
     social: ['facebook', 'twitter', 'linkedin', 'menu']
-    runtime: shiny
 
 ---
 <style>
@@ -35,7 +34,7 @@ output:
 }
 </style>
 
-```{r setup, include = FALSE, context = "server"}
+```{r setup, include = FALSE}
 library(flexdashboard)
 library(StatsBombR)
 library(tidyverse)
