@@ -1,0 +1,6 @@
+name: "statsbomb stadistics"
+navbar:
+  title: "Analisis de Partido"
+  left:
+    - text: "Home"
+      href: index.html
